@@ -2,6 +2,8 @@
 
 #include "Motor.hpp"
 
+#include "bsp/esp-bsp.h"
+
 #include "lvgl.h"
 
 #include "iot_button.h"
@@ -25,23 +27,32 @@ namespace pcp {
     private:
         void _turnOffSpeaker(void);
         void _setupScreen(void);
+        void _setupButtons(void);
 
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         lv_obj_t* _createButton(lv_obj_t* parent, lv_align_t align, int32_t x, const char* text);
+#endif
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
         void _configurePhysicalButton(const std::optional<uint8_t>& gpio, button_handle_t* buttonHandle, button_cb_t callback);
+#endif
 
         void _loop(void);
 
         void _armCompleted(void);
         void _unarmCompleted(void);
 
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         lv_obj_t* _throttleLabel = nullptr;
         lv_obj_t* _downButton = nullptr;
         lv_obj_t* _upButton = nullptr;
         lv_obj_t* _armStopButton = nullptr;
         lv_obj_t* _spinner = nullptr;
+#endif
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
         button_handle_t _middleButton = nullptr;
         button_handle_t _leftButton = nullptr;
         button_handle_t _rightButton = nullptr;
+#endif
         
         std::mutex _queuedActionsMutex;
         std::queue<std::function<void(void)>> _queuedActions;
@@ -49,8 +60,10 @@ namespace pcp {
         Motor<1000, 2000> _motor;
         bool _motorIsArmed = false;
 
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
         friend void _middleButtonPressed(void* buttonHandle, void* userData);
         friend void _leftButtonPressed(void* buttonHandle, void* userData);
         friend void _rightButtonPressed(void* buttonHandle, void* userData);
-    };
+#endif
+   };
 }

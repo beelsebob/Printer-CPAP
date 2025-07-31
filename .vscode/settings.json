@@ -89,6 +89,11 @@
     "typeinfo": "cpp",
     "variant": "cpp",
     "queue": "cpp",
-    "m5stack_core.h": "c"
+    "m5stack_core.h": "c",
+    "i2c_master.h": "c",
+    "bsp_err_check.h": "c",
+    "button_gpio.h": "c",
+    "esp_lcd_ili9341.h": "c",
+    "display.h": "c"
   }
 }

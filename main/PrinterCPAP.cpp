@@ -2,52 +2,34 @@
 
 #include "Log.hpp"
 
-#include "bsp/esp-bsp.h"
-
 #include "button_gpio.h"
-
-#include "driver/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#ifdef BSP_BUTTON_LEFT
-#define USE_LEFT_BUTTON 1
-#else
-#define USE_LEFT_BUTTON 0
-#endif
-
-#ifdef BSP_BUTTON_MIDDLE
-#define USE_MIDDLE_BUTTON 1
-#else
-#define USE_MIDDLE_BUTTON 0
-#endif
-
-#ifdef BSP_BUTTON_RIGHT
-#define USE_RIGHT_BUTTON 1
-#else
-#define USE_RIGHT_BUTTON 0
-#endif
-
-#define USE_BUTTONS (USE_LEFT_BUTTON && USE_MIDDLE_BUTTON && USE_RIGHT_BUTTON)
-
 namespace pcp {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
     static constexpr uint32_t kButtonHeight = 32;
 
     void _downPressed(lv_event_t* event);
     void _upPressed(lv_event_t* event);
     void _armStopPressed(lv_event_t* event);
+#endif
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
     void _middleButtonPressed(void *button_handle, void *user_data);
     void _leftButtonPressed(void *button_handle, void *user_data);
     void _rightButtonPressed(void *button_handle, void *user_data);
+#endif
 
     PrinterCPAP::PrinterCPAP() : _motor() {
         PCP_LOGI("Creating Printer CPAP Controller");
         _turnOffSpeaker();
         _setupScreen();
+        _setupButtons();
     }
 
     PrinterCPAP::~PrinterCPAP() {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         if (_throttleLabel != nullptr) {
             lv_obj_delete(_throttleLabel);
         }
@@ -60,6 +42,7 @@ namespace pcp {
         if (_armStopButton != nullptr) {
             lv_obj_delete(_armStopButton);
         }
+#endif
     }
 
     void PrinterCPAP::run(void) {
@@ -69,12 +52,14 @@ namespace pcp {
     }
 
     void PrinterCPAP::armStopPressed() {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         bsp_display_lock(0);
         lv_obj_remove_flag(_spinner, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(_downButton, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(_upButton, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(_armStopButton, LV_OBJ_FLAG_HIDDEN);
         bsp_display_unlock();
+#endif
         if (_motorIsArmed) {
             _motor.unarm([this](void){ this->_unarmCompleted(); });
         } else {
@@ -91,6 +76,7 @@ namespace pcp {
     }
 
     void PrinterCPAP::_armCompleted(void) {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         std::lock_guard<std::mutex> _guard(_queuedActionsMutex);
         _queuedActions.push([this]() {
             bsp_display_lock(0);
@@ -108,9 +94,11 @@ namespace pcp {
             bsp_display_unlock();
             _motorIsArmed = true;
         });
+#endif
     }
 
     void PrinterCPAP::_unarmCompleted(void) {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         std::lock_guard<std::mutex> _guard(_queuedActionsMutex);
         _queuedActions.push([this]() {
             bsp_display_lock(0);
@@ -128,23 +116,25 @@ namespace pcp {
             bsp_display_unlock();
             _motorIsArmed = false;
         });
+#endif
     }
 
     void PrinterCPAP::_turnOffSpeaker(void) {
-        gpio_config_t config = {
-            .pin_bit_mask = 1 << 25,
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_ENABLE,
-            .intr_type = GPIO_INTR_DISABLE,
-        };
-        esp_err_t err = gpio_config(&config);
+        esp_err_t err = ESP_OK;
+#if defined(BSP_CAPS_AUDIO_SPEAKER) && BSP_CAPS_AUDIO_SPEAKER
+#if defined(BSP_CAPS_AUDIO) && BSP_CAPS_AUDIO
+        err = bsp_audio_codec_speaker_init();
+#else
+        err = bsp_speaker_init();
+#endif
+#endif
         if (err != ESP_OK) {
-            PCP_LOGW("Could not turn the speaker off: %s", esp_err_to_name(err));
+            PCP_LOGW("Could not turn the speaker off (by turning it on): %s", esp_err_to_name(err));
         }
     }
 
     void PrinterCPAP::_setupScreen(void) {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         bsp_display_start();
         bsp_display_backlight_on();
         bsp_display_lock(0);
@@ -155,25 +145,12 @@ namespace pcp {
         lv_obj_set_style_text_align(_throttleLabel, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_font(_throttleLabel, &lv_font_montserrat_48, LV_STATE_DEFAULT);
         
-        std::optional<gpio_num_t> buttonLeftGPIO;
-        std::optional<gpio_num_t> buttonMiddleGPIO;
-        std::optional<gpio_num_t> buttonRightGPIO;
-#if USE_BUTTONS
-        buttonLeftGPIO = BSP_BUTTON_LEFT;
-        buttonMiddleGPIO = BSP_BUTTON_MIDDLE;
-        buttonRightGPIO = BSP_BUTTON_RIGHT;
-#endif
-
         _downButton = _createButton(screen, LV_ALIGN_BOTTOM_LEFT, 16, LV_SYMBOL_DOWN);
         _upButton = _createButton(screen, LV_ALIGN_BOTTOM_RIGHT, -16, LV_SYMBOL_UP);
         _armStopButton = _createButton(screen, LV_ALIGN_BOTTOM_MID, 0, LV_SYMBOL_PLAY);
         lv_obj_add_event_cb(_downButton, _downPressed, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(_upButton, _upPressed, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(_armStopButton, _armStopPressed, LV_EVENT_CLICKED, this);
-
-        _configurePhysicalButton(buttonMiddleGPIO, &_middleButton, _middleButtonPressed);
-        _configurePhysicalButton(buttonLeftGPIO, &_leftButton, _leftButtonPressed);
-        _configurePhysicalButton(buttonRightGPIO, &_rightButton, _rightButtonPressed);
 
         lv_obj_add_flag(_downButton, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(_upButton, LV_OBJ_FLAG_HIDDEN);
@@ -185,8 +162,18 @@ namespace pcp {
         lv_obj_add_flag(_spinner, LV_OBJ_FLAG_HIDDEN);
     
         bsp_display_unlock();
+#endif
     }
 
+    void PrinterCPAP::_setupButtons(void) {
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
+        _configurePhysicalButton(BSP_BUTTON_MIDDLE, &_middleButton, _middleButtonPressed);
+        _configurePhysicalButton(BSP_BUTTON_LEFT, &_leftButton, _leftButtonPressed);
+        _configurePhysicalButton(BSP_BUTTON_RIGHT, &_rightButton, _rightButtonPressed);
+#endif
+    }
+
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
     lv_obj_t* PrinterCPAP::_createButton(lv_obj_t* parent, lv_align_t align, int32_t x, const char* text) {
         lv_obj_t* button = lv_button_create(parent);
         lv_obj_set_size(button, lv_pct(25), kButtonHeight);
@@ -199,7 +186,9 @@ namespace pcp {
 
         return button;
     }
+#endif
 
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
     void PrinterCPAP::_configurePhysicalButton(const std::optional<uint8_t>& gpio, button_handle_t* buttonHandle, button_cb_t callback) {
         if (gpio.has_value()) {
             button_config_t buttonConfig = {
@@ -220,15 +209,17 @@ namespace pcp {
             iot_button_register_cb(*buttonHandle, BUTTON_PRESS_END, nullptr, callback, this);
         }
     }
+#endif
 
     void PrinterCPAP::_loop(void) {
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         bsp_display_lock(0);
         
         lv_label_set_text_fmt(_throttleLabel, "%u%%", _motor.throttle());
         lv_task_handler();
 
         bsp_display_unlock();
-
+#endif
 
         {
             std::lock_guard<std::mutex> locker(_queuedActionsMutex);
@@ -242,6 +233,7 @@ namespace pcp {
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 
+#if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
     void _armStopPressed(lv_event_t* event) {
         PrinterCPAP* printerCPAP = reinterpret_cast<PrinterCPAP*>(lv_event_get_user_data(event));
         printerCPAP->armStopPressed();
@@ -256,7 +248,9 @@ namespace pcp {
         PrinterCPAP* printerCPAP = reinterpret_cast<PrinterCPAP*>(lv_event_get_user_data(event));
         printerCPAP->upPressed();
     }
+#endif
 
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
     void _middleButtonPressed(void* buttonHandle, void* userData) {
         PrinterCPAP* printerCPAP = reinterpret_cast<PrinterCPAP*>(userData);
         if (!lv_obj_has_flag(printerCPAP->_armStopButton, LV_OBJ_FLAG_HIDDEN)) {
@@ -277,4 +271,5 @@ namespace pcp {
             printerCPAP->upPressed();
         }
     }
+#endif
 }
