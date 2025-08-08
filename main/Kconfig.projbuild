@@ -1,0 +1,14 @@
+menu "Printer-CPAP"
+    choice PCP_HW_IN_USE
+        prompt "What hardware are we running on"
+        default PCP_HW_M5_BASIC
+        config PCP_HW_M5_BASIC
+            bool "M5Stack Basic"
+            imply LV_FONT_MONTSERRAT_48
+        config PCP_HW_M5_CORE2
+            bool "M5Stack Core 2"
+            imply LV_FONT_MONTSERRAT_48
+        config PCP_HW_GENERIC
+            bool "Generic ESP32"
+    endchoice
+endmenu

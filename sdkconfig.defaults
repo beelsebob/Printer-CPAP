@@ -1,0 +1,7 @@
+#
+# Printer-CPAP
+#
+CONFIG_PCP_HW_M5_BASIC=y
+# CONFIG_PCP_HW_M5_CORE2 is not set
+# CONFIG_PCP_HW_GENERIC is not set
+# end of Printer-CPAP
