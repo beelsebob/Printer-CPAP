@@ -1,12 +1,15 @@
 #pragma once
 
+#include "FanInput.hpp"
 #include "Motor.hpp"
 
 #include "bsp/esp-bsp.h"
 
 #include "lvgl.h"
 
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
 #include "iot_button.h"
+#endif
 
 #include <mutex>
 #include <queue>
@@ -28,6 +31,8 @@ namespace pcp {
         void _turnOffSpeaker(void);
         void _setupScreen(void);
         void _setupButtons(void);
+        void _setupMotor(void);
+        void _setupFanInput(void);
 
 #if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         lv_obj_t* _createButton(lv_obj_t* parent, lv_align_t align, int32_t x, const char* text);
@@ -39,7 +44,7 @@ namespace pcp {
         void _loop(void);
 
         void _armCompleted(void);
-        void _unarmCompleted(void);
+        void _disarmCompleted(void);
 
 #if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         lv_obj_t* _throttleLabel = nullptr;
@@ -58,7 +63,7 @@ namespace pcp {
         std::queue<std::function<void(void)>> _queuedActions;
 
         Motor<1000, 2000> _motor;
-        bool _motorIsArmed = false;
+        FanInput _fanInput;
 
 #if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
         friend void _middleButtonPressed(void* buttonHandle, void* userData);

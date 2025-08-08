@@ -2,7 +2,9 @@
 
 #include "Log.hpp"
 
+#if defined(BSP_CAPS_BUTTONS) && BSP_CAPS_BUTTONS
 #include "button_gpio.h"
+#endif
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -23,9 +25,12 @@ namespace pcp {
 
     PrinterCPAP::PrinterCPAP() : _motor() {
         PCP_LOGI("Creating Printer CPAP Controller");
+        esp_timer_init();
         _turnOffSpeaker();
         _setupScreen();
         _setupButtons();
+        _setupMotor();
+        _setupFanInput();
     }
 
     PrinterCPAP::~PrinterCPAP() {
@@ -43,6 +48,7 @@ namespace pcp {
             lv_obj_delete(_armStopButton);
         }
 #endif
+        _fanInput.stop();
     }
 
     void PrinterCPAP::run(void) {
@@ -60,8 +66,8 @@ namespace pcp {
         lv_obj_add_flag(_armStopButton, LV_OBJ_FLAG_HIDDEN);
         bsp_display_unlock();
 #endif
-        if (_motorIsArmed) {
-            _motor.unarm([this](void){ this->_unarmCompleted(); });
+        if (_motor.isArmed()) {
+            _motor.disarm([this](void){ this->_disarmCompleted(); });
         } else {
             _motor.arm([this](void){ this->_armCompleted(); });
         }
@@ -92,12 +98,11 @@ namespace pcp {
             lv_obj_remove_flag(_upButton, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(_spinner, LV_OBJ_FLAG_HIDDEN);
             bsp_display_unlock();
-            _motorIsArmed = true;
         });
 #endif
     }
 
-    void PrinterCPAP::_unarmCompleted(void) {
+    void PrinterCPAP::_disarmCompleted(void) {
 #if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         std::lock_guard<std::mutex> _guard(_queuedActionsMutex);
         _queuedActions.push([this]() {
@@ -114,7 +119,6 @@ namespace pcp {
             lv_obj_add_flag(_upButton, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(_spinner, LV_OBJ_FLAG_HIDDEN);
             bsp_display_unlock();
-            _motorIsArmed = false;
         });
 #endif
     }
@@ -123,7 +127,7 @@ namespace pcp {
         esp_err_t err = ESP_OK;
 #if defined(BSP_CAPS_AUDIO_SPEAKER) && BSP_CAPS_AUDIO_SPEAKER
 #if defined(BSP_CAPS_AUDIO) && BSP_CAPS_AUDIO
-        err = bsp_audio_codec_speaker_init();
+        bsp_audio_codec_speaker_init();
 #else
         err = bsp_speaker_init();
 #endif
@@ -211,7 +215,18 @@ namespace pcp {
     }
 #endif
 
+    void PrinterCPAP::_setupMotor(void) {
+    }
+
+    void PrinterCPAP::_setupFanInput(void) {
+        _fanInput.start();
+    }
+
     void PrinterCPAP::_loop(void) {
+        if (_motor.isArmed()) {
+            _motor.setThrottle(_fanInput.dutyCyclePercentage());
+        }
+
 #if defined(BSP_CAPS_DISPLAY) && BSP_CAPS_DISPLAY
         bsp_display_lock(0);
         

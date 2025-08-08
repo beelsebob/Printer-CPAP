@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Log.hpp"
+#include "Pins.hpp"
 #include "utils.hpp"
 
-#include "driver/gpio.h"
 #include "driver/mcpwm_cmpr.h"
 #include "driver/mcpwm_gen.h"
 #include "driver/mcpwm_oper.h"
@@ -41,8 +41,10 @@ namespace pcp {
             Motor();
             ~Motor();
 
+            bool isArmed(void) const;
             void arm(Completion completion = Completion());
-            void unarm(Completion completion = Completion());
+            void disarm(Completion completion = Completion());
+            void setThrottle(int8_t percentage, MsTime duration = 0);
             void decreaseThrottle(int8_t percentage, MsTime duration);
             void increaseThrottle(int8_t percentage, MsTime duration);
             uint8_t throttle() const;
@@ -73,6 +75,7 @@ namespace pcp {
             mcpwm_cmpr_handle_t _comparatorHandle = nullptr;
             MsTime _time = 0;
             PWMPulseWidth _throttlePWM = 0;
+            bool _isArmed = false;
 
             std::deque<std::pair<MotorOperation, Completion>> _operationQueue;
             TaskHandle_t _updateTask = nullptr;
@@ -82,7 +85,6 @@ namespace pcp {
             static MotorOperation _unarmOp;
     };
 
-    static constexpr uint32_t kESCPin = 5;
     static constexpr uint32_t kInteruptPriority = 3;
     static constexpr uint32_t kArmSpeed = 1;
 
@@ -143,8 +145,6 @@ namespace pcp {
             if (operation._speeds.back().first < _time) {
                 _setThrottlePWM(operation._speeds.back().second);
 
-                PCP_LOGI("Completed operation %s", operation._name.c_str());
-
                 const Completion& completion = _operationQueue.front().second;
                 if (completion) {
                     completion();
@@ -153,7 +153,6 @@ namespace pcp {
                 _time = 0;
                 _operationQueue.pop_front();
                 if (!_operationQueue.empty()) {
-                    PCP_LOGI("Beginning operation %s", operation._name.c_str());
                 }
             } else {
                 break;
@@ -200,8 +199,6 @@ namespace pcp {
         }
 
         _setThrottlePWM(speed);
-
-        PCP_LOGI("T+ %lu - %u%%", _time, throttle());
 
         return timeToNextUpdate;
     }
@@ -304,14 +301,14 @@ namespace pcp {
             PCP_LOGE("Error occurred while creating comparator: %s", esp_err_to_name(err));
             return;
         }
-        err = mcpwm_comparator_set_compare_value(_comparatorHandle, 1800);
+        err = mcpwm_comparator_set_compare_value(_comparatorHandle, 0);
         if (err != ESP_OK) {
             PCP_LOGE("Error occurred while setting comparator value: %s", esp_err_to_name(err));
             return;
         }
 
         mcpwm_generator_config_t generatorCongif = {
-            .gen_gpio_num = kESCPin,
+            .gen_gpio_num = kMotorOutputGPIO,
             .flags = {
                 .invert_pwm = false,
                 .io_loop_back = false,
@@ -350,27 +347,39 @@ namespace pcp {
     }
 
     template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
-    void Motor<minThrottlePWM, maxThrottlePWM>::arm(Completion completion) {
-        _runOperation(_armOp, completion);
+    bool Motor<minThrottlePWM, maxThrottlePWM>::isArmed(void) const {
+        return _isArmed;
     }
 
     template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
-    void Motor<minThrottlePWM, maxThrottlePWM>::unarm(Completion completion) {
+    void Motor<minThrottlePWM, maxThrottlePWM>::arm(Completion completion) {
+        _runOperation(_armOp, [this, completion]() {
+            this->_isArmed = true;
+            completion();
+        });
+    }
+
+    template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
+    void Motor<minThrottlePWM, maxThrottlePWM>::disarm(Completion completion) {
+        _isArmed = false;
         _runOperation(_unarmOp, completion);
     }
 
     template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
     MotorOperation Motor<minThrottlePWM, maxThrottlePWM>::_changeThrottleOp(int8_t percentage, MsTime duration) const {
         const uint32_t lastPWM = std::clamp(_lastQueuedPWM(), minThrottlePWM, maxThrottlePWM);
-        PCP_LOGI("Last queued PWM: %lu" , lastPWM);
         uint32_t newPWM = (uint32_t)(lastPWM + ((int32_t)percentage * (int32_t)(maxThrottlePWM - minThrottlePWM)) / 100);
-        PCP_LOGI("Throttle range: %d, %d%% of which: %d, newPWM: %lu", (int32_t)(maxThrottlePWM - minThrottlePWM), percentage, ((int32_t)percentage * (int32_t)(maxThrottlePWM - minThrottlePWM)) / 100, newPWM);
         return MotorOperation("Change Throttle", {
             MotorOperation::DataPoint(0, lastPWM),
             MotorOperation::DataPoint(duration, newPWM)
         });
     }
 
+    template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
+    void Motor<minThrottlePWM, maxThrottlePWM>::setThrottle(int8_t percentage, MsTime duration) {
+        _runOperation(_changeThrottleOp(percentage - _lastQueuedThrottle(), duration), [](){});
+    }
+    
     template <uint32_t minThrottlePWM, uint32_t maxThrottlePWM>
     void Motor<minThrottlePWM, maxThrottlePWM>::decreaseThrottle(int8_t percentage, MsTime duration) {
         _runOperation(_changeThrottleOp(-percentage, duration), [](){});
@@ -388,7 +397,6 @@ namespace pcp {
         if (isEmpty) {
             _time = 0;
             xSemaphoreGive(_taskSemaphore);
-            PCP_LOGI("Beginning operation %s", op._name.c_str());
         }
     }
 
@@ -402,11 +410,9 @@ namespace pcp {
         for (auto iter = _operationQueue.rbegin(); iter != _operationQueue.rend(); ++iter) {
             const MotorOperation& op = iter->first;
             if (!op._speeds.empty()) {
-                PCP_LOGI("Found operation in queue with speed %lu", op._speeds.back().second);
                 return op._speeds.back().second;
             }
         }
-        PCP_LOGI("No operation found - using last set PWM: %lu", _throttlePWM);
         return _throttlePWM;
     }
 
