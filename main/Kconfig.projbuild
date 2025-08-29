@@ -8,6 +8,9 @@ menu "Printer-CPAP"
         config PCP_HW_M5_CORE2
             bool "M5Stack Core 2"
             imply LV_FONT_MONTSERRAT_48
+        config PCP_HW_M5_CORES3
+            bool "M5Stack Core S3"
+            imply LV_FONT_MONTSERRAT_48
         config PCP_HW_GENERIC
             bool "Generic ESP32"
     endchoice

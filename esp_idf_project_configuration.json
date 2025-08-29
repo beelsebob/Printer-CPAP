@@ -1,20 +1,47 @@
 {
-  "M5": {
+  "M5 Core Basic": {
     "build": {
       "compileArgs": [],
       "ninjaArgs": [],
-      "buildDirectoryPath": "",
       "sdkconfigDefaults": [
-        "sdkconfig.default"
+        "c:\\Users\\Tom Davie\\Printer CPAP\\sdkconfig.defaults",
+        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_m5.defaults",
+        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_corebasic.defaults"
       ],
-      "sdkconfigFilePath": "sdkconfig"
+      "sdkconfigFilePath": "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_corebasic"
     },
     "env": {},
-    "flashBaudRate": "",
-    "idfTarget": "",
-    "monitorBaudRate": "",
+    "idfTarget": "esp32",
+    "flashBaudRate": "1500000",
+    "monitorBaudRate": "115200",
     "openOCD": {
       "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "M5 Core S3": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "sdkconfigDefaults": [
+        "c:\\Users\\Tom Davie\\Printer CPAP\\sdkconfig.defaults",
+        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_m5.defaults",
+        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_cores3.defaults"
+      ],
+      "sdkconfigFilePath": "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig"
+    },
+    "env": {},
+    "idfTarget": "esp32s3",
+    "monitorBaudRate": "115200",
+    "openOCD": {
+      "debugLevel": 1,
       "configs": [],
       "args": []
     },

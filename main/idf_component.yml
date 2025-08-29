@@ -12,6 +12,10 @@ dependencies:
     version: ^2.0.0
     matches:
     - if: "$CONFIG{PCP_HW_M5_CORE2} == True" 
-
+  espressif/m5stack_core_s3:
+    version: ^3.0.0
+# This is meant to work... but ESP IDF is doing many weird things?
+#    matches:
+#    - if: "$CONFIG{PCP_HW_M5_CORES3} == True"
   espressif/esp_lvgl_port: ^2.3.0
   lvgl/lvgl: ^9.*

@@ -3,20 +3,20 @@
   "idf.espIdfPathWin": "C:\\Users\\Tom Davie\\esp\\v5.5\\esp-idf",
   "idf.pythonInstallPath": "c:\\idf-tools\\tools\\idf-python\\3.11.2\\python.exe",
   "idf.openOcdConfigs": [
-    "board/esp32-wrover-kit-3.3v.cfg"
+    "board/esp32s3-builtin.cfg"
   ],
-  "idf.portWin": "COM7",
+  "idf.portWin": "COM8",
   "idf.toolsPathWin": "c:\\idf-tools",
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32"
+    "IDF_TARGET": "esp32s3"
   },
   "clangd.path": "c:\\idf-tools\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
   "clangd.arguments": [
     "--background-index",
-    "--query-driver=c:\\idf-tools\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp32-elf-gcc.exe",
-    "--compile-commands-dir=${workspaceFolder}\\build"
+    "--query-driver=c:\\idf-tools\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp32s3-elf-gcc.exe",
+    "--compile-commands-dir=c:\\Users\\Tom Davie\\Printer CPAP\\build"
   ],
-  "idf.flashType": "UART",
+  "idf.flashType": "JTAG",
   "files.associations": {
     "array": "cpp",
     "atomic": "cpp",
