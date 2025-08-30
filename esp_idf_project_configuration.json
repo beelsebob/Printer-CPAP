@@ -1,14 +1,15 @@
 {
-  "M5 Core Basic": {
+  "M5 Core Basic (Debug)": {
     "build": {
       "compileArgs": [],
       "ninjaArgs": [],
       "sdkconfigDefaults": [
-        "c:\\Users\\Tom Davie\\Printer CPAP\\sdkconfig.defaults",
-        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_m5.defaults",
-        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_corebasic.defaults"
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_corebasic.defaults",
+        "config/sdkconfig_debug.defaults"
       ],
-      "sdkconfigFilePath": "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_corebasic"
+      "sdkconfigFilePath": "config/sdkconfig"
     },
     "env": {},
     "idfTarget": "esp32",
@@ -26,16 +27,128 @@
       "postFlash": ""
     }
   },
-  "M5 Core S3": {
+  "M5 Core Basic (Release)": {
     "build": {
       "compileArgs": [],
       "ninjaArgs": [],
       "sdkconfigDefaults": [
-        "c:\\Users\\Tom Davie\\Printer CPAP\\sdkconfig.defaults",
-        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_m5.defaults",
-        "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig_cores3.defaults"
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_corebasic.defaults",
+        "config/sdkconfig_release.defaults"
       ],
-      "sdkconfigFilePath": "c:\\Users\\Tom Davie\\Printer CPAP\\config\\sdkconfig"
+      "sdkconfigFilePath": "config/sdkconfig"
+    },
+    "env": {},
+    "idfTarget": "esp32",
+    "flashBaudRate": "1500000",
+    "monitorBaudRate": "115200",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "M5 Core 2 (Debug)": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "sdkconfigDefaults": [
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_core2.defaults",
+        "config/sdkconfig_debug.defaults"
+      ],
+      "sdkconfigFilePath": "config/sdkconfig"
+    },
+    "env": {},
+    "idfTarget": "esp32",
+    "flashBaudRate": "1500000",
+    "monitorBaudRate": "115200",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "M5 Core 2 (Release)": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "sdkconfigDefaults": [
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_core2.defaults",
+        "config/sdkconfig_release.defaults"
+      ],
+      "sdkconfigFilePath": "config/sdkconfig"
+    },
+    "env": {},
+    "idfTarget": "esp32",
+    "flashBaudRate": "1500000",
+    "monitorBaudRate": "115200",
+    "openOCD": {
+      "debugLevel": -1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "M5 Core S3 (Debug)": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "sdkconfigDefaults": [
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_cores3.defaults",
+        "config/sdkconfig_debug.defaults"
+      ],
+      "sdkconfigFilePath": "config/sdkconfig"
+    },
+    "env": {},
+    "idfTarget": "esp32s3",
+    "monitorBaudRate": "115200",
+    "openOCD": {
+      "debugLevel": 1,
+      "configs": [],
+      "args": []
+    },
+    "tasks": {
+      "preBuild": "",
+      "preFlash": "",
+      "postBuild": "",
+      "postFlash": ""
+    }
+  },
+  "M5 Core S3 (Release)": {
+    "build": {
+      "compileArgs": [],
+      "ninjaArgs": [],
+      "sdkconfigDefaults": [
+        "sdkconfig.defaults",
+        "config/sdkconfig_m5.defaults",
+        "config/sdkconfig_cores3.defaults",
+        "config/sdkconfig_release.defaults"
+      ],
+      "sdkconfigFilePath": "config/sdkconfig"
     },
     "env": {},
     "idfTarget": "esp32s3",
