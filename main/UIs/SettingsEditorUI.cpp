@@ -20,8 +20,7 @@ namespace pcp {
         _esc = std::make_unique<BLHeliESC>();
         _esc->enterProgrammingMode([this](std::optional<BLHeliESCConfig> escConfig) {
             _config = escConfig;
-
-            updateUI();
+            _configChanged = true;
         });
     }
 
@@ -31,7 +30,7 @@ namespace pcp {
     };
 
     void SettingsEditorUI::updateUI(void) {
-        if (!_config.has_value()) {
+        if (!_configChanged || !_config.has_value()) {
             return;
         }
 
@@ -56,8 +55,6 @@ namespace pcp {
         lv_obj_remove_flag(_dataTable, LV_OBJ_FLAG_HIDDEN);
         lv_table_set_row_count(_dataTable, settings.size() + 1);
         lv_table_set_column_count(_dataTable, 2);
-        lv_obj_add_event_cb(_dataTable, drawEvent, LV_EVENT_DRAW_TASK_ADDED, this);
-        lv_obj_add_flag(_dataTable, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
         lv_table_set_cell_ctrl(_dataTable, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
         lv_table_set_cell_value_fmt(_dataTable, 0, 0, "%s\n%s", deviceConfig.prettyLayout().c_str(), deviceConfig.name().c_str());
         lv_obj_set_style_text_font(_dataTable, &lv_font_montserrat_18, 0);
@@ -144,6 +141,8 @@ namespace pcp {
             lv_obj_set_size(_dataTable, lv_pct(100), lv_pct(100));
             lv_obj_center(_dataTable);
             lv_obj_add_flag(_dataTable, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_event_cb(_dataTable, drawEvent, LV_EVENT_DRAW_TASK_ADDED, this);
+            lv_obj_add_flag(_dataTable, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
 
             _spinner = lv_spinner_create(_rootWidget);
             lv_obj_set_size(_spinner, 96, 96);

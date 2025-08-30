@@ -32,6 +32,7 @@ namespace pcp {
         std::unique_ptr<BLHeliESC> _esc = nullptr;
 
         std::optional<BLHeliESCConfig> _config;
+        bool _configChanged = false;
 
         lv_obj_t* _dataTable;
         lv_obj_t* _spinner;
