@@ -9,9 +9,23 @@
 #include <regex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace std {
+    std::string to_string(const pcp::BLHeliRotorType& rotorType) {
+        switch (rotorType) {
+            case pcp::BLHeliRotorType::Main:
+                return "Main Rotor";
+            case pcp::BLHeliRotorType::Tail:
+                return "Tail Rotor";
+            case pcp::BLHeliRotorType::Multi:
+                return "Multi Rotor";
+        }
+        assert(false);
+        return "UNKNOWN";
+    }
+
     std::string to_string(const pcp::BLHeliESCSetting& setting) {
         switch (setting) {
             case pcp::BLHeliESCSetting::FirmwareMajorVersion:
@@ -455,7 +469,7 @@ namespace pcp {
         return "Unknown Setting";
     }
 
-    uint8_t defaultValueForSetting(BLHeliESCSetting setting) {
+    uint8_t BLHeliESCConfig::defaultValueForSetting(BLHeliESCSetting setting) const {
         switch (setting) {
             case pcp::BLHeliESCSetting::FirmwareMajorVersion:
                 return 14;
@@ -464,29 +478,49 @@ namespace pcp {
             case pcp::BLHeliESCSetting::LayoutRevision:
                 return 21;
             case pcp::BLHeliESCSetting::GovernorPGain:
-                return static_cast<uint8_t>(kDefaultGovernorPGain);
+                return static_cast<uint8_t>(rotorType() == BLHeliRotorType::Multi ? kDefaultGovernorPGainMulti : kDefaultGovernorPGain);
             case pcp::BLHeliESCSetting::GovernorIGain:
-                return static_cast<uint8_t>(kDefaultGovernorIGain);
+                return static_cast<uint8_t>(rotorType() == BLHeliRotorType::Multi ? kDefaultGovernorIGainMulti : kDefaultGovernorIGain);
             case pcp::BLHeliESCSetting::GovernorMode:
-                return static_cast<uint8_t>(kDefaultGovernorMode);
+                return static_cast<uint8_t>(rotorType() == BLHeliRotorType::Multi ? kDefaultGovernorModeMulti : kDefaultGovernorMode);
             case pcp::BLHeliESCSetting::LowVoltageLimit:
                 return static_cast<uint8_t>(kDefaultLowVoltageLimit);
             case pcp::BLHeliESCSetting::MotorGain:
-                return 0;
+                return static_cast<uint8_t>(kDefaultMotorGain);
             case pcp::BLHeliESCSetting::MotorIdle:
-                return 0;
+                return static_cast<uint8_t>(kDefaultMotorIdle);
             case pcp::BLHeliESCSetting::StartupPower:
                 return static_cast<uint8_t>(kDefaultStartupPower);
             case pcp::BLHeliESCSetting::PwmFrequency:
-                return static_cast<uint8_t>(kDefaultPwmFrequency);
+                return static_cast<uint8_t>(rotorType() == BLHeliRotorType::Main
+                                                ? kDefaultPwmFrequency
+                                                : (_layoutSupportsDampedMode() ? kDefaultPwmFrequencyDampedTail : kDefaultPwmFrequencyTail));
             case pcp::BLHeliESCSetting::Direction:
                 return static_cast<uint8_t>(kDefaultDirection);
             case pcp::BLHeliESCSetting::InputPolarity:
                 return static_cast<uint8_t>(kDefaultInputPolarity);
             case pcp::BLHeliESCSetting::SignatureLow:
-                return 0;
+                switch (rotorType()) {
+                    case BLHeliRotorType::Main:
+                        return 0xa5;
+                    case BLHeliRotorType::Tail:
+                        return 0x5a;
+                    case BLHeliRotorType::Multi:
+                        return 0x55;
+                    default:
+                        return 0x00;
+                }
             case pcp::BLHeliESCSetting::SignatureHigh:
-                return 0;
+                switch (rotorType()) {
+                    case BLHeliRotorType::Main:
+                        return 0x5a;
+                    case BLHeliRotorType::Tail:
+                        return 0xa5;
+                    case BLHeliRotorType::Multi:
+                        return 0xaa;
+                    default:
+                        return 0x00;
+                }
             case pcp::BLHeliESCSetting::EnableProgramByTx:
                 return static_cast<uint8_t>(kDefaultProgramByTx);
             case pcp::BLHeliESCSetting::MainRearmStart:
@@ -512,15 +546,33 @@ namespace pcp {
             case pcp::BLHeliESCSetting::MaxThrottlePpm:
                 return static_cast<uint8_t>(kDefaultMaxThrottlePpm);
             case pcp::BLHeliESCSetting::BeepStrength:
-                return static_cast<uint8_t>(kDefaultBeepStrength);
+                switch (rotorType()) {
+                    case BLHeliRotorType::Main:
+                        return kDefaultBeepStrengthMain;
+                    case BLHeliRotorType::Tail:
+                        return kDefaultBeepStrengthTail;
+                    case BLHeliRotorType::Multi:
+                        return kDefaultBeepStrengthMulti;
+                    default:
+                        return kDefaultBeepStrengthMain;
+                }
             case pcp::BLHeliESCSetting::BeaconStrength:
-                return static_cast<uint8_t>(kDefaultBeaconStrength);
+                switch (rotorType()) {
+                    case BLHeliRotorType::Main:
+                        return kDefaultBeaconStrengthMain;
+                    case BLHeliRotorType::Tail:
+                        return kDefaultBeaconStrengthTail;
+                    case BLHeliRotorType::Multi:
+                        return kDefaultBeaconStrengthMulti;
+                    default:
+                        return kDefaultBeaconStrengthMain;
+                }
             case pcp::BLHeliESCSetting::BeaconDelay:
                 return static_cast<uint8_t>(kDefaultBeaconDelay);
             case pcp::BLHeliESCSetting::ThrottleRate:
                 return 0;
             case pcp::BLHeliESCSetting::DemagCompensation:
-                return static_cast<uint8_t>(kDefaultDemagCompensation);
+                return static_cast<uint8_t>(rotorType() == BLHeliRotorType::Multi ? kDefaultDemagCompensationMulti : kDefaultDemagCompensation);
             case pcp::BLHeliESCSetting::BECVoltageHigh:
                 return 0;
             case pcp::BLHeliESCSetting::CentreThrottlePpm:
@@ -748,6 +800,9 @@ namespace pcp {
         };
         const std::vector<BLHeliESCSetting>& availableSettings = kSettingsByRotorType[static_cast<uint8_t>(rotorType())];
 
+        _majorVersion = _eepromBytes[static_cast<size_t>(BLHeliESCSetting::FirmwareMajorVersion)];
+        _minorVersion = _eepromBytes[static_cast<size_t>(BLHeliESCSetting::FirmwareMinorVersion)];
+
         _settings.clear();
         _settings.reserve(availableSettings.size());
         for (BLHeliESCSetting setting : availableSettings) {
@@ -755,20 +810,38 @@ namespace pcp {
         }
     }
 
-    RotorType BLHeliESCConfig::rotorType(void) {
+    bool BLHeliESCConfig::_layoutSupportsDampedMode(void) const {
+        std::unordered_set<std::string> _dampedModeLayouts = {
+            "AIK_BL_30S",     "MR25_15A",       "AlignBL35P",     "AlignBL35X",     "DALRC_XR20A",    "DP3A",           "DYS_XM20A",      "EAZY3Av2",
+            "EMAX20A",        "EMAX40A",        "EMAX_Ltng_20A",  "EMAXNano20A",    "F85_3A",         "FVTLibee12A",    "FVTLibee20A",    "FVTLibee20APro",
+            "FVTLibee30A",    "FC_Fairy_30A",   "FC_FairyV2_30A", "FC_Raptor_20A",  "FC_Rapt390_20A", "G_Ultra20A",     "HTHumbird12A",   "HTHumbird20A",
+            "HTHumbird30APr", "HKing10A",       "HKing20A",       "HKing35A",       "HKing50A",       "OvskyMR20A",     "OvskyMR20APro",  "Platinum50Av3",
+            "Platinum150A",   "PlatinumPro30A", "RotorGeeks20A",  "RotorGeeks20AP", "SKMonster30A",   "SKMonster30APr", "SKMonster70APr", "SKMonster80A",
+            "Skywalker20A",   "Skywalker40A",   "Supermicro3p5A", "TBSCube12A",     "TurnigyAE45A",   "TgyKF40A",       "Turnigy40A",     "TurnigyNfet18A",
+            "TurnigyNfet25A", "TurnigyNfet30A", "XP35ASW",        "XP3A",           "XP7AFast",       "XRotor10A",      "XRotor20A",      "XRotor40A",
+            "ZTWSpPro20A",    "ZTWSpPro20AHV",  "ZTWSpPro20APrm", "ZTWSpPro30AHV",
+        };
+        return _dampedModeLayouts.contains(_layout);
+    }
+
+    std::string BLHeliESCConfig::versionString(void) const {
+        return std::format("{}.{}", _majorVersion, _minorVersion);
+    }
+
+    BLHeliRotorType BLHeliESCConfig::rotorType(void) const {
         const uint16_t signature = static_cast<uint16_t>(_eepromBytes[static_cast<size_t>(BLHeliESCSetting::SignatureLow)]) +
                                    (static_cast<uint16_t>(_eepromBytes[static_cast<size_t>(BLHeliESCSetting::SignatureHigh)]) << 8);
 
         switch (signature) {
             case 0x5aa5:
-                return RotorType::Main;
+                return BLHeliRotorType::Main;
             case 0xa55a:
-                return RotorType::Tail;
+                return BLHeliRotorType::Tail;
             case 0xaa55:
-                return RotorType::Multi;
+                return BLHeliRotorType::Multi;
             default:
                 assert(false && "Invalid rotor type");
-                return RotorType::Main;
+                return BLHeliRotorType::Main;
         }
     }
 }  // namespace pcp

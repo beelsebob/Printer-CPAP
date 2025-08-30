@@ -35,6 +35,7 @@ namespace pcp {
         bool _configChanged = false;
 
         lv_obj_t* _dataTable;
+        lv_obj_t* _rotorTypeLabel;
         lv_obj_t* _spinner;
 
         const std::string _name = "Edit ESC Settings";

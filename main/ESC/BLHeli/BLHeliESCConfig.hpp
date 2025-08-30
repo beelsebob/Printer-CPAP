@@ -10,6 +10,8 @@
 namespace pcp {
     static constexpr size_t kBLHeliEEPROMSize = 0x70;
 
+    enum class BLHeliRotorType : uint8_t { Main = 0, Tail = 1, Multi = 2 };
+
     enum class BLHeliESCSetting : uint8_t {
         FirmwareMajorVersion = 0,
         FirmwareMinorVersion = 1,
@@ -70,7 +72,9 @@ namespace pcp {
     };
 
     static constexpr BLHeliGovernorGain kDefaultGovernorPGain = BLHeliGovernorGain::Gain1p00;
+    static constexpr BLHeliGovernorGain kDefaultGovernorPGainMulti = BLHeliGovernorGain::Gain2p00;
     static constexpr BLHeliGovernorGain kDefaultGovernorIGain = BLHeliGovernorGain::Gain1p00;
+    static constexpr BLHeliGovernorGain kDefaultGovernorIGainMulti = BLHeliGovernorGain::Gain2p00;
 
     enum class BLHeliSettingGovernorMode : uint8_t {
         Tx = 1,
@@ -80,6 +84,7 @@ namespace pcp {
     };
 
     static constexpr BLHeliSettingGovernorMode kDefaultGovernorMode = BLHeliSettingGovernorMode::Tx;
+    static constexpr BLHeliSettingGovernorMode kDefaultGovernorModeMulti = BLHeliSettingGovernorMode::Off;
 
     enum class BLHeliSettingLowVoltageLimit : uint8_t {
         Off = 1,
@@ -99,6 +104,8 @@ namespace pcp {
         MotorGain1p12 = 4,
         MotorGain1p25 = 5,
     };
+
+    static constexpr BLHeliSettingMotorGain kDefaultMotorGain = BLHeliSettingMotorGain::MotorGain1p00;
 
     enum class BLHeliSettingMotorIdle : uint8_t {
         Low = 1,
@@ -134,7 +141,9 @@ namespace pcp {
         DampedLight = 3,
     };
 
-    static constexpr BLHeliSettingPwmFrequency kDefaultPwmFrequency = BLHeliSettingPwmFrequency::DampedLight;
+    static constexpr BLHeliSettingPwmFrequency kDefaultPwmFrequency = BLHeliSettingPwmFrequency::Low;
+    static constexpr BLHeliSettingPwmFrequency kDefaultPwmFrequencyTail = BLHeliSettingPwmFrequency::High;
+    static constexpr BLHeliSettingPwmFrequency kDefaultPwmFrequencyDampedTail = BLHeliSettingPwmFrequency::DampedLight;
 
     enum class BLHeliSettingDirection : uint8_t {
         Forward = 1,
@@ -186,18 +195,18 @@ namespace pcp {
 
     static constexpr BLHeliSettingCommutationTiming kDefaultMainCommutationTiming = BLHeliSettingCommutationTiming::Medium;
 
-    enum class BLHeliSettingGovernorRange : uint8_t {
-        High = 1,
-        Middle = 2,
-        Low = 3,
-    };
+    enum class BLHeliSettingGovernorRange : uint8_t { High = 1, Middle = 2, Low = 3, Off = 4 };
 
-    static constexpr BLHeliSettingGovernorRange kDefaultGovernorRange = BLHeliSettingGovernorRange::High;
+    static constexpr BLHeliSettingGovernorRange kDefaultGovernorRange = BLHeliSettingGovernorRange::Off;
 
     static constexpr uint8_t kDefaultMinThrottlePpm = 37;
     static constexpr uint8_t kDefaultMaxThrottlePpm = 208;
-    static constexpr uint8_t kDefaultBeepStrength = 120;
-    static constexpr uint8_t kDefaultBeaconStrength = 200;
+    static constexpr uint8_t kDefaultBeepStrengthMain = 120;
+    static constexpr uint8_t kDefaultBeepStrengthTail = 250;
+    static constexpr uint8_t kDefaultBeepStrengthMulti = 40;
+    static constexpr uint8_t kDefaultBeaconStrengthMain = 200;
+    static constexpr uint8_t kDefaultBeaconStrengthTail = 250;
+    static constexpr uint8_t kDefaultBeaconStrengthMulti = 80;
 
     struct BLHeliThrottleValue {
         constexpr BLHeliThrottleValue(uint8_t v) : value(v) {}
@@ -231,12 +240,13 @@ namespace pcp {
     };
 
     static constexpr BLHeliSettingDemagCompensation kDefaultDemagCompensation = BLHeliSettingDemagCompensation::Off;
+    static constexpr BLHeliSettingDemagCompensation kDefaultDemagCompensationMulti = BLHeliSettingDemagCompensation::Low;
 
     static constexpr uint8_t kDefaultCentreThrottlePpm = 122;
 
     static constexpr BLHeliBool kDefaultTemperatureProtection = BLHeliBool::On;
     static constexpr BLHeliBool kDefaultPowerProtection = BLHeliBool::On;
-    static constexpr BLHeliBool kDefaultEnablePwmInput = BLHeliBool::On;
+    static constexpr BLHeliBool kDefaultEnablePwmInput = BLHeliBool::Off;
 
     enum class BLHeliSettingPwmDither : uint8_t {
         Off = 1,
@@ -249,11 +259,10 @@ namespace pcp {
     static constexpr BLHeliSettingPwmDither kDefaultPwmDither = BLHeliSettingPwmDither::Level7;
 
     static constexpr BLHeliBool kDefaultEnableBrakeOnStop = BLHeliBool::Off;
-
-    uint8_t defaultValueForSetting(BLHeliESCSetting setting);
 }  // namespace pcp
 
 namespace std {
+    std::string to_string(const pcp::BLHeliRotorType& rotorType);
     std::string to_string(const pcp::BLHeliESCSetting& setting);
     std::string to_string(const pcp::BLHeliGovernorGain& setting);
     std::string to_string(const pcp::BLHeliSettingGovernorMode& setting);
@@ -275,7 +284,6 @@ namespace std {
 namespace pcp {
     std::string setting_to_string(pcp::BLHeliESCSetting setting, uint8_t value);
 
-    enum class RotorType : uint8_t { Main = 0, Tail = 1, Multi = 2 };
     static constexpr uint8_t kRotorTypeCount = 3;
 
     struct BLHeliESCConfig {
@@ -295,19 +303,27 @@ namespace pcp {
 
         const std::string& name(void) const { return _name; }
 
-        RotorType rotorType(void);
+        BLHeliRotorType rotorType(void) const;
+
+        std::string versionString(void) const;
 
         const std::unordered_map<BLHeliESCSetting, uint8_t>& settings(void) const { return _settings; }
 
         std::unordered_map<BLHeliESCSetting, uint8_t>& settings(void) { return _settings; }
 
+        uint8_t defaultValueForSetting(BLHeliESCSetting setting) const;
+
     private:
         void _parseDeviceSettings(void);
+
+        bool _layoutSupportsDampedMode(void) const;
 
         std::array<uint8_t, 4> _bootloaderVersion{'\0'};
         std::array<uint8_t, 2> _signature{'\0'};
         uint8_t _bootVersion = '\0';
         uint8_t _bootPages = '\0';
+        uint8_t _majorVersion = 0;
+        uint8_t _minorVersion = 0;
 
         std::array<uint8_t, kBLHeliEEPROMSize> _eepromBytes{'\0'};
 

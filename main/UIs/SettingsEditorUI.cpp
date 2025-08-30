@@ -52,12 +52,13 @@ namespace pcp {
         }
         std::sort(sortedSettings.begin(), sortedSettings.end());
 
+        lv_label_set_text_fmt(_rotorTypeLabel, "%s\n%s", deviceConfig.versionString().c_str(), std::to_string(deviceConfig.rotorType()).c_str());
+
         lv_obj_remove_flag(_dataTable, LV_OBJ_FLAG_HIDDEN);
         lv_table_set_row_count(_dataTable, settings.size() + 1);
         lv_table_set_column_count(_dataTable, 2);
         lv_table_set_cell_ctrl(_dataTable, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
         lv_table_set_cell_value_fmt(_dataTable, 0, 0, "%s\n%s", deviceConfig.prettyLayout().c_str(), deviceConfig.name().c_str());
-        lv_obj_set_style_text_font(_dataTable, &lv_font_montserrat_18, 0);
         lv_table_set_col_width(_dataTable, 1, kDataColumnWidth);
         lv_table_set_col_width(_dataTable, 0, settingNameColumnWidth);
         for (size_t i = 0; i < sortedSettings.size(); ++i) {
@@ -65,7 +66,7 @@ namespace pcp {
             const uint8_t value = settings.at(setting);
             lv_table_set_cell_value(_dataTable, i + 1, 0, std::to_string(setting).c_str());
             lv_table_set_cell_value(_dataTable, i + 1, 1, setting_to_string(setting, value).c_str());
-            if (value == defaultValueForSetting(setting)) {
+            if (value == deviceConfig.defaultValueForSetting(setting)) {
                 lv_table_set_cell_ctrl(_dataTable, i + 1, 1, LV_TABLE_CELL_CTRL_CUSTOM_1);
             }
         }
@@ -89,7 +90,7 @@ namespace pcp {
 
             if (row == 0) {
                 if (labelDrawDescription != nullptr) {
-                    labelDrawDescription->align = LV_TEXT_ALIGN_CENTER;
+                    labelDrawDescription->align = LV_TEXT_ALIGN_LEFT;
                     labelDrawDescription->font = &lv_font_montserrat_24;
                     labelDrawDescription->ofs_y = -5;
                 }
@@ -107,7 +108,7 @@ namespace pcp {
 
             if (lv_table_has_cell_ctrl(_dataTable, row, col, LV_TABLE_CELL_CTRL_CUSTOM_1)) {
                 if (labelDrawDescription != nullptr) {
-                    labelDrawDescription->color = lv_palette_darken(LV_PALETTE_GREEN, row % 2 == 0 ? 4 : 1);
+                    labelDrawDescription->color = lv_palette_darken(LV_PALETTE_GREEN, row % 2 == 0 ? 2 : 4);
                 }
             }
 
@@ -141,8 +142,16 @@ namespace pcp {
             lv_obj_set_size(_dataTable, lv_pct(100), lv_pct(100));
             lv_obj_center(_dataTable);
             lv_obj_add_flag(_dataTable, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_text_font(_dataTable, &lv_font_montserrat_18, 0);
             lv_obj_add_event_cb(_dataTable, drawEvent, LV_EVENT_DRAW_TASK_ADDED, this);
             lv_obj_add_flag(_dataTable, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+
+            _rotorTypeLabel = lv_label_create(_dataTable);
+            lv_obj_set_style_text_font(_rotorTypeLabel, &lv_font_montserrat_18, 0);
+            lv_obj_set_style_text_color(_rotorTypeLabel, lv_palette_main(LV_PALETTE_RED), 0);
+            lv_obj_set_style_text_align(_rotorTypeLabel, LV_TEXT_ALIGN_RIGHT, 0);
+            lv_obj_set_align(_rotorTypeLabel, LV_ALIGN_TOP_RIGHT);
+            lv_obj_set_pos(_rotorTypeLabel, -12, 12);
 
             _spinner = lv_spinner_create(_rootWidget);
             lv_obj_set_size(_spinner, 96, 96);
