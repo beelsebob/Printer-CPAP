@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -287,9 +288,7 @@ namespace pcp {
     static constexpr uint8_t kRotorTypeCount = 3;
 
     struct BLHeliESCConfig {
-        BLHeliESCConfig();
-
-        BLHeliESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes);
+        static std::optional<BLHeliESCConfig> parseESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes);
 
         const std::array<uint8_t, 4>& bootloaderVersion() const { return _bootloaderVersion; }
 
@@ -309,11 +308,17 @@ namespace pcp {
 
         const std::unordered_map<BLHeliESCSetting, uint8_t>& settings(void) const { return _settings; }
 
-        std::unordered_map<BLHeliESCSetting, uint8_t>& settings(void) { return _settings; }
+        void setSetting(BLHeliESCSetting setting, uint8_t value);
 
         uint8_t defaultValueForSetting(BLHeliESCSetting setting) const;
 
     private:
+        BLHeliESCConfig() = delete;
+
+        BLHeliESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes);
+
+        static bool _canParseESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes);
+
         void _parseDeviceSettings(void);
 
         bool _layoutSupportsDampedMode(void) const;

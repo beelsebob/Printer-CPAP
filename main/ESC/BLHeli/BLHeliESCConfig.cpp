@@ -602,7 +602,10 @@ namespace pcp {
     static constexpr size_t kBLHeliDeviceLayoutMaxLength = kBLHeliDeviceLayoutStorageMaxLength - 2;
     static constexpr size_t kBLHeliDeviceNameMaxLength = 0x10;
 
-    BLHeliESCConfig::BLHeliESCConfig() {}
+    std::optional<BLHeliESCConfig> BLHeliESCConfig::parseESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes) {
+        return _canParseESCConfig(escGreeting, eepromBytes) ? std::optional<BLHeliESCConfig>(BLHeliESCConfig(escGreeting, eepromBytes))
+                                                            : std::optional<BLHeliESCConfig>();
+    }
 
     BLHeliESCConfig::BLHeliESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes)
         : _bootloaderVersion(), _signature(), _bootVersion(escGreeting[6]), _bootPages(escGreeting[7]) {
@@ -627,6 +630,10 @@ namespace pcp {
         }
 
         _parseDeviceSettings();
+    }
+
+    bool BLHeliESCConfig::_canParseESCConfig(const uint8_t* escGreeting, const std::vector<uint8_t>& eepromBytes) {
+        return eepromBytes[static_cast<size_t>(BLHeliESCSetting::LayoutRevision)] == 21;
     }
 
     std::string BLHeliESCConfig::prettyLayout() const {

@@ -95,7 +95,7 @@ namespace pcp {
         TaskHandle_t _uartTask = nullptr;
         size_t _numRetries = 0;
 
-        BLHeliESCConfig _esc;
+        std::optional<BLHeliESCConfig> _esc;
 
         friend void _uartTaskF(void*);
         friend bool _timerEmpty(mcpwm_timer_handle_t, const mcpwm_timer_event_data_t*, void*);

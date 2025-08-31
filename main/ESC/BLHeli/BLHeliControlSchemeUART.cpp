@@ -462,9 +462,10 @@ namespace pcp {
             return;
         }
 
-        _esc = device.data;
+        _esc = device.value();
         _numRetries = 0;
-        PCP_LOGD("Got device config for: %s", _esc.prettyLayout().c_str());
+        assert(_esc.has_value());
+        PCP_LOGD("Got device config for: %s", _esc.value().prettyLayout().c_str());
 
         _escState = ESCState::Programming;
         _connectionFinished(true);
@@ -506,22 +507,27 @@ namespace pcp {
         static constexpr uint16_t kDeviceLayoutLength = 0x0070;
 
         BootloaderResult<std::vector<uint8_t>> deviceConfigMemory = readMemory(kDeviceLayoutLocation, kDeviceLayoutLength, 1000 / portTICK_PERIOD_MS);
-        if (deviceConfigMemory) {
-            const std::vector<uint8_t>& deviceConfigBytes = deviceConfigMemory.data;
-
-            BLHeliESCConfig device(handshake, deviceConfigBytes);
-
-            return BootloaderResult<BLHeliESCConfig>(device);
+        if (!deviceConfigMemory) {
+            PCP_LOGE("Could not read memory: %s", std::to_string(deviceConfigMemory).c_str());
+            return BootloaderResult<BLHeliESCConfig>(deviceConfigMemory.resultCode());
         }
-        PCP_LOGE("Could not read memory: %s", std::to_string(deviceConfigMemory).c_str());
-        return BootloaderResult<BLHeliESCConfig>(deviceConfigMemory.resultCode);
+
+        const std::vector<uint8_t>& deviceConfigBytes = deviceConfigMemory.value();
+
+        std::optional<BLHeliESCConfig> device = BLHeliESCConfig::parseESCConfig(handshake, deviceConfigBytes);
+
+        if (!device.has_value()) {
+            return BootloaderResult<BLHeliESCConfig>(BootloaderResultCode::ErrorNone);
+        }
+
+        return BootloaderResult<BLHeliESCConfig>(device.value());
     }
 
     BootloaderResult<std::vector<uint8_t>> BLHeliControlSchemeUART::readMemory(uint16_t address, uint8_t length, TickType_t timeout) {
         BootloaderResult<Void> success = _setAddress(address, timeout);
         if (!success) {
             PCP_LOGE("Could not set address: %s", std::to_string(success).c_str());
-            return BootloaderResult<std::vector<uint8_t>>(success.resultCode);
+            return BootloaderResult<std::vector<uint8_t>>(success.resultCode());
         }
         return _readMemory(length, timeout);
     }

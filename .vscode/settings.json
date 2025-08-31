@@ -94,6 +94,7 @@
     "bsp_err_check.h": "c",
     "button_gpio.h": "c",
     "esp_lcd_ili9341.h": "c",
-    "display.h": "c"
+    "display.h": "c",
+    "unordered_set": "cpp"
   }
 }

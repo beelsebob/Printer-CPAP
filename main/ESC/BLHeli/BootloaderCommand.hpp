@@ -4,6 +4,7 @@
 #include "Utilities/to_stringExtras.hpp"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace pcp {
@@ -23,26 +24,139 @@ namespace pcp {
 
     inline std::string to_string(BootloaderResultCode res) {
         switch (res) {
-            case BootloaderResultCode::ErrorTimeout: return "ErrorTimeout";
-            case BootloaderResultCode::Success: return "Success";
-            case BootloaderResultCode::ErrorVerify: return "ErrorVerify";
-            case BootloaderResultCode::ErrorCommand: return "ErrorCommand";
-            case BootloaderResultCode::ErrorCRC: return "ErrorCRC";
-            case BootloaderResultCode::ErrorProg: return "ErrorProg";
-            case BootloaderResultCode::ErrorNone: return "ErrorNone";
+            case BootloaderResultCode::ErrorTimeout:
+                return "ErrorTimeout";
+            case BootloaderResultCode::Success:
+                return "Success";
+            case BootloaderResultCode::ErrorVerify:
+                return "ErrorVerify";
+            case BootloaderResultCode::ErrorCommand:
+                return "ErrorCommand";
+            case BootloaderResultCode::ErrorCRC:
+                return "ErrorCRC";
+            case BootloaderResultCode::ErrorProg:
+                return "ErrorProg";
+            case BootloaderResultCode::ErrorNone:
+                return "ErrorNone";
         }
         assert(false && "Unhandled case in switch statement");
         return "UnknownError" + std::to_string(to_uint8(res));
     }
 
     template <typename T>
-    class BootloaderResult {
+    struct BootloaderResult {
+    private:
+        template <typename U>
+        struct _Storage {
+            _Storage() {}
+
+            _Storage(const U& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                new (storage) U(other);
+                _isStored = true;
+            }
+
+            _Storage(U&& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                new (storage) U(std::move(other));
+                _isStored = true;
+            }
+
+            _Storage(const _Storage<U>& other) {
+                if (other._isStored) {
+                    U* storage = reinterpret_cast<U*>(_storage);
+                    const U* otherStorage = reinterpret_cast<U*>(other.storage);
+                    new (storage) U(*otherStorage);
+                    _isStored = true;
+                }
+            }
+
+            _Storage(_Storage<U>&& other) {
+                if (other._isStored) {
+                    U* storage = reinterpret_cast<U*>(_storage);
+                    U* otherStorage = reinterpret_cast<U*>(other.storage);
+                    new (storage) U(std::move(*otherStorage));
+                    _isStored = true;
+                }
+            }
+
+            ~_Storage() {
+                if (_isStored) {
+                    U* storage = reinterpret_cast<U*>(_storage);
+                    storage->~U();
+                }
+            }
+
+            _Storage& operator=(const U& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                if (_isStored) {
+                    *storage = other;
+                } else {
+                    new (storage) U(other);
+                }
+                _isStored = true;
+                return *this;
+            }
+
+            _Storage& operator=(U&& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                if (_isStored) {
+                    *storage = std::move(other);
+                } else {
+                    new (storage) U(std::move(other));
+                }
+                _isStored = true;
+                return *this;
+            }
+
+            _Storage& operator=(const _Storage<U>& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                const U* otherStorage = reinterpret_cast<U*>(other.storage);
+                if (_isStored) {
+                    *storage = otherStorage;
+                } else {
+                    new (storage) U(otherStorage);
+                }
+                _isStored = true;
+                return *this;
+            }
+
+            _Storage& operator=(_Storage<U>&& other) {
+                U* storage = reinterpret_cast<U*>(_storage);
+                U* otherStorage = reinterpret_cast<U*>(other.storage);
+                if (_isStored) {
+                    *storage = std::move(otherStorage);
+                } else {
+                    new (storage) U(std::move(otherStorage));
+                }
+                _isStored = true;
+                return *this;
+            }
+
+            U& value() {
+                U* storage = reinterpret_cast<U*>(_storage);
+                return *storage;
+            }
+
+            const U& value() const {
+                const U* storage = reinterpret_cast<const U*>(_storage);
+                return *storage;
+            }
+
+            bool _isStored = false;
+            uint8_t _storage[sizeof(U)]{0xde};
+        };
+
+        BootloaderResultCode _resultCode;
+
+        _Storage<T> _storage;
+
     public:
-        BootloaderResult() : resultCode(BootloaderResultCode::Success), data() {}
+        BootloaderResult() : _resultCode(BootloaderResultCode::Success), _storage() {}
 
-        BootloaderResult(BootloaderResultCode code) : resultCode(code) { assert(code != BootloaderResultCode::Success); }
+        BootloaderResult(BootloaderResultCode code) : _resultCode(code) { assert(code != BootloaderResultCode::Success); }
 
-        BootloaderResult(const T& result) : resultCode(BootloaderResultCode::Success), data(result) {}
+        BootloaderResult(const T& result) : _resultCode(BootloaderResultCode::Success), _storage(result) {}
 
         BootloaderResult(const BootloaderResult<T>& result) = default;
         BootloaderResult(BootloaderResult<T>&& result) = default;
@@ -50,20 +164,25 @@ namespace pcp {
         BootloaderResult<T>& operator=(const BootloaderResult<T>& result) = default;
         BootloaderResult<T>& operator=(BootloaderResult<T>&& result) = default;
 
-        BootloaderResultCode resultCode;
-        T data;
+        bool has_value() const { return _resultCode == BootloaderResultCode::Success; }
 
-        operator bool() const { return resultCode == BootloaderResultCode::Success; }
+        BootloaderResultCode resultCode() const { return _resultCode; }
+
+        T& value() { return _storage.value(); }
+
+        const T& value() const { return _storage.value(); }
+
+        operator bool() const { return _resultCode == BootloaderResultCode::Success; }
     };
 }  // namespace pcp
 
 namespace std {
     template <typename T>
     std::string to_string(const pcp::BootloaderResult<T>& r) {
-        if (r.resultCode == pcp::BootloaderResultCode::Success) {
-            return std::to_string(r.data);
+        if (r.has_value()) {
+            return std::to_string(r.value());
         } else {
-            return "<" + to_string(r.resultCode) + ">";
+            return "<" + to_string(r.resultCode()) + ">";
         }
     }
 }  // namespace std
